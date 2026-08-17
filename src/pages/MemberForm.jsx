@@ -18,6 +18,7 @@ export default function MemberForm() {
     email: '',
     phone: '',
     photo_url: '',
+    due_date: '',
   })
   
   const [photoFile, setPhotoFile] = useState(null)
@@ -33,6 +34,7 @@ export default function MemberForm() {
         email: member.email || '',
         phone: member.phone || '',
         photo_url: member.photo_url || '',
+        due_date: member.due_date ? member.due_date.slice(0, 10) : '',
       })
       setPreviewUrl(member.photo_url || null)
     }
@@ -41,7 +43,6 @@ export default function MemberForm() {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
-    // Limpiar error al escribir
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -51,26 +52,22 @@ export default function MemberForm() {
     const file = e.target.files[0]
     if (!file) return
 
-    // Validar que sea imagen
     if (!file.type.startsWith('image/')) {
       alert('Por favor selecciona una imagen válida')
       return
     }
 
-    // Validar tamaño (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('La imagen no debe superar los 5MB')
       return
     }
 
-    // Mostrar preview temporal con FileReader
     const reader = new FileReader()
     reader.onloadend = () => {
       setPreviewUrl(reader.result)
     }
     reader.readAsDataURL(file)
 
-    // Guardar el archivo para subirlo al guardar el formulario
     setPhotoFile(file)
   }
 
@@ -78,6 +75,7 @@ export default function MemberForm() {
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = 'El nombre es obligatorio'
     if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es obligatorio'
+    if (!formData.due_date) newErrors.due_date = 'La fecha de vencimiento es obligatoria'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -91,14 +89,11 @@ export default function MemberForm() {
     try {
       let photoUrl = formData.photo_url
 
-      // Si hay una foto nueva para subir
       if (photoFile) {
-        // Si estamos editando y había una foto anterior, eliminarla
         if (isEditing && member?.photo_url) {
           await deleteMemberPhoto(member.photo_url)
         }
 
-        // Subir nueva foto
         const result = await uploadMemberPhoto(photoFile, id || 'new')
         if (result.error) throw new Error(result.error)
         photoUrl = result.url
@@ -136,7 +131,6 @@ export default function MemberForm() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -218,6 +212,24 @@ export default function MemberForm() {
             />
             {errors.last_name && (
               <p className="mt-1 text-sm text-red-500">{errors.last_name}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#888888] mb-1">
+              Fecha de vencimiento *
+            </label>
+            <input
+              type="date"
+              name="due_date"
+              value={formData.due_date}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 rounded-lg bg-[#0a0a0a] border ${
+                errors.due_date ? 'border-red-500' : 'border-[#1a1a1a]'
+              } text-white focus:outline-none focus:border-[#c9a961] transition-colors`}
+            />
+            {errors.due_date && (
+              <p className="mt-1 text-sm text-red-500">{errors.due_date}</p>
             )}
           </div>
 
