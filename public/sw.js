@@ -1,11 +1,10 @@
-const CACHE_NAME = 'spafit-v2-cache-v1'
+const CACHE_NAME = 'spafit-v2-cache-v2'
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/imagen/logo.jpg'
+  '/manifest.json'
 ]
-
+ 
 // Instalar: guardar en cache
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -15,7 +14,7 @@ self.addEventListener('install', (event) => {
   )
   self.skipWaiting()
 })
-
+ 
 // Activar: limpiar caches viejas
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -29,7 +28,7 @@ self.addEventListener('activate', (event) => {
   )
   self.clients.claim()
 })
-
+ 
 // Fetch: responder desde cache o red
 self.addEventListener('fetch', (event) => {
   event.respondWith(
