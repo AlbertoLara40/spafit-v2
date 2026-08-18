@@ -4,6 +4,7 @@ import { ArrowLeft, Edit, Trash2, User, Calendar, Phone, Mail, CreditCard, Loade
 import { useMembers } from '../hooks/useMembers'
 import { usePayments } from '../hooks/usePayments'
 import { deleteMemberPhoto } from '../lib/storage'
+import { getPaymentMethodLabel } from '../utils/helpers'
 
 export default function MemberDetail() {
   const { id } = useParams()
@@ -16,8 +17,9 @@ export default function MemberDetail() {
   
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [paymentMethod, setPaymentMethod] = useState('efectivo')
   const [deleting, setDeleting] = useState(false)
+  const [savingPayment, setSavingPayment] = useState(false)
 
   if (membersLoading) {
     return (
@@ -43,7 +45,7 @@ export default function MemberDetail() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'text-green-500 bg-green-500/10'
+      case 'activo': return 'text-green-500 bg-green-500/10'
       case 'por_vencer': return 'text-amber-500 bg-amber-500/10'
       case 'vencido': return 'text-red-500 bg-red-500/10'
       default: return 'text-[#888888] bg-[#1a1a1a]'
@@ -52,7 +54,7 @@ export default function MemberDetail() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'active': return 'Activo'
+      case 'activo': return 'Activo'
       case 'por_vencer': return 'Por vencer'
       case 'vencido': return 'Vencido'
       default: return status
@@ -63,7 +65,6 @@ export default function MemberDetail() {
     if (window.confirm(`¿Eliminar a ${member.name} ${member.last_name}? Se eliminarán también todos sus pagos y foto.`)) {
       setDeleting(true)
       try {
-        // Eliminar foto primero
         if (member.photo_url) {
           await deleteMemberPhoto(member.photo_url)
         }
@@ -81,21 +82,27 @@ export default function MemberDetail() {
     e.preventDefault()
     if (!paymentAmount) return
 
+    setSavingPayment(true)
+
     const result = await addPayment({
       member_id: id,
       amount: parseFloat(paymentAmount),
       method: paymentMethod,
+      payment_date: new Date().toISOString().slice(0, 10),
     })
+
+    setSavingPayment(false)
 
     if (result.success) {
       setPaymentAmount('')
+      setPaymentMethod('efectivo')
       setShowPaymentForm(false)
     } else {
       alert('Error al registrar pago: ' + result.error)
     }
   }
 
-  const totalPaid = memberPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  const totalPaid = memberPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -232,17 +239,26 @@ export default function MemberDetail() {
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] text-white focus:outline-none focus:border-[#c9a961]"
                 >
-                  <option value="cash">Efectivo</option>
-                  <option value="card">Tarjeta</option>
-                  <option value="transfer">Transferencia</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="pago_movil">Pago Móvil</option>
+                  <option value="zelle">Zelle</option>
                 </select>
               </div>
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2 rounded-lg bg-[#c9a961] text-black font-medium hover:bg-[#d4b978] transition-colors"
+              disabled={savingPayment}
+              className="w-full px-4 py-2 rounded-lg bg-[#c9a961] text-black font-medium hover:bg-[#d4b978] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              Guardar Pago
+              {savingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Pago'
+              )}
             </button>
           </form>
         )}
@@ -263,14 +279,13 @@ export default function MemberDetail() {
                 {memberPayments.map((payment) => (
                   <tr key={payment.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a]/50">
                     <td className="py-3 px-4 text-white">
-                      {new Date(payment.created_at).toLocaleDateString('es-ES')}
+                      {new Date(payment.payment_date || payment.created_at).toLocaleDateString('es-ES')}
                     </td>
                     <td className="py-3 px-4 text-[#c9a961] font-medium">
-                      ${payment.amount?.toFixed(2)}
+                      ${parseFloat(payment.amount).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-white capitalize">
-                      {payment.method === 'cash' ? 'Efectivo' : 
-                       payment.method === 'card' ? 'Tarjeta' : 'Transferencia'}
+                    <td className="py-3 px-4 text-white">
+                      {getPaymentMethodLabel(payment.method)}
                     </td>
                   </tr>
                 ))}

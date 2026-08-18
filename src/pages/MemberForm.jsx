@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Camera, ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { useMembers } from '../hooks/useMembers'
+import { usePayments } from '../hooks/usePayments'
 import { uploadMemberPhoto, deleteMemberPhoto } from '../lib/storage'
 
 export default function MemberForm() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { members, addMember, updateMember, loading: membersLoading } = useMembers()
+  const { addPayment } = usePayments()
   
   const isEditing = Boolean(id)
   const member = members.find(m => m.id === id)
@@ -20,6 +22,10 @@ export default function MemberForm() {
     photo_url: '',
     due_date: '',
   })
+
+  // Datos del pago inicial (solo aplica al crear un miembro nuevo)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('efectivo')
   
   const [photoFile, setPhotoFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -76,6 +82,9 @@ export default function MemberForm() {
     if (!formData.name.trim()) newErrors.name = 'El nombre es obligatorio'
     if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es obligatorio'
     if (!formData.due_date) newErrors.due_date = 'La fecha de vencimiento es obligatoria'
+    if (!isEditing && paymentAmount && parseFloat(paymentAmount) < 0) {
+      newErrors.paymentAmount = 'El monto no puede ser negativo'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -110,6 +119,20 @@ export default function MemberForm() {
         : await addMember(memberData)
 
       if (result.success) {
+        // Si es un miembro nuevo y se indicó un monto, registrar el pago inicial
+        if (!isEditing && paymentAmount && parseFloat(paymentAmount) > 0) {
+          const paymentResult = await addPayment({
+            member_id: result.data.id,
+            amount: parseFloat(paymentAmount),
+            method: paymentMethod,
+            payment_date: new Date().toISOString().slice(0, 10),
+          })
+
+          if (!paymentResult.success) {
+            alert('El miembro se creó, pero hubo un error al registrar el pago: ' + paymentResult.error)
+          }
+        }
+
         navigate(isEditing ? `/members/${id}` : '/members')
       } else {
         alert('Error al guardar: ' + result.error)
@@ -261,6 +284,55 @@ export default function MemberForm() {
             />
           </div>
         </div>
+
+        {/* Pago inicial - solo al crear un miembro nuevo */}
+        {!isEditing && (
+          <div className="pt-4 border-t border-[#1a1a1a]">
+            <h2 className="text-sm font-semibold text-[#c9a961] mb-3 uppercase tracking-wide">
+              Pago Inicial (opcional)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#888888] mb-1">
+                  Monto
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg bg-[#0a0a0a] border ${
+                    errors.paymentAmount ? 'border-red-500' : 'border-[#1a1a1a]'
+                  } text-white placeholder-[#444444] focus:outline-none focus:border-[#c9a961] transition-colors`}
+                  placeholder="0.00"
+                />
+                {errors.paymentAmount && (
+                  <p className="mt-1 text-sm text-red-500">{errors.paymentAmount}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#888888] mb-1">
+                  Método de pago
+                </label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] text-white focus:outline-none focus:border-[#c9a961] transition-colors"
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="pago_movil">Pago Móvil</option>
+                  <option value="zelle">Zelle</option>
+                </select>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-[#666666]">
+              Si dejas el monto en blanco, el miembro se creará sin registrar ningún pago.
+            </p>
+          </div>
+        )}
 
         {/* Botones */}
         <div className="flex gap-4 pt-4">
