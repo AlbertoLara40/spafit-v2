@@ -24,7 +24,7 @@ export default function Header({ toggleSidebar }) {
 
       <div className="flex items-center gap-4">
         <img 
-          src="/images/logo.jpg" 
+          src="/images/icon-192.png" 
           alt="SPAFIT" 
           className="w-8 h-8 object-contain rounded-full"
         />
