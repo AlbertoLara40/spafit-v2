@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spafit-v2-cache-v2'
+const CACHE_NAME = 'spafit-v2-cache-v3'
 const urlsToCache = [
   '/',
   '/index.html',
@@ -29,12 +29,25 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
  
-// Fetch: responder desde cache o red
+// Fetch: solo interceptar peticiones GET de nuestro propio sitio.
+// Todo lo demás (POST, PUT, DELETE, y peticiones a otros dominios
+// como Supabase) pasa directo a la red, sin pasar por el cache.
 self.addEventListener('fetch', (event) => {
+  const request = event.request
+  const url = new URL(request.url)
+ 
+  const isSameOrigin = url.origin === self.location.origin
+  const isGet = request.method === 'GET'
+ 
+  if (!isSameOrigin || !isGet) {
+    // Dejar que la petición siga su curso normal, sin interceptar
+    return
+  }
+ 
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Si está en cache, devuelve cache. Si no, va a la red.
-      return response || fetch(event.request)
+    caches.match(request).then((response) => {
+      return response || fetch(request)
     })
   )
 })
+ 
