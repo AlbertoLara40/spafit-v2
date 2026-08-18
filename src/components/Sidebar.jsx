@@ -27,7 +27,7 @@ export default function Sidebar({ closeSidebar }) {
       <div className="p-6 border-b border-[#1a1a1a]">
         <div className="flex flex-col items-center">
           <img 
-            src="/images/logo.jpg" 
+            src="/images/icon-512.png" 
             alt="SPAFIT Logo" 
             className="w-20 h-20 object-contain mb-2 rounded-lg"
           />
